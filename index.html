@@ -3,155 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>서비스센터 입출차 v2.3</title>
+    <title>서비스센터 입출차 관리 V4</title>
     <style>
-        :root { --primary: #2563eb; --success: #059669; --warning: #d97706; --danger: #dc2626; --bg: #f1f5f9; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: #1e293b; }
-        .card { background: white; border-radius: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 12px; border: 1px solid #e2e8f0; }
-        .card-header { padding: 12px 15px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 15px 15px 0 0; font-weight: 800; display: flex; justify-content: space-between; align-items: center; }
-        .card-body { padding: 15px; }
-        
-        /* 알림판 UX */
-        #display-screen { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; margin-bottom: 15px; padding: 20px; border: 3px solid #cbd5e1; background: #fff; }
-        .msg-main { font-size: 1.6rem; font-weight: 900; line-height: 1.2; }
-        .msg-sub { font-size: 1rem; color: #64748b; margin-top: 8px; white-space: pre-line; }
+        :root { --primary: #2563eb; --success: #16a34a; --warning: #d97706; --danger: #dc2626; --bg: #f8fafc; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 12px; color: #0f172a; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 16px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .card-header { padding: 14px 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 800; font-size: 1rem; display: flex; justify-content: space-between; }
+        .card-body { padding: 16px; }
 
-        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; }
-        .btn-main { height: 100px; font-size: 1.3rem; color: white; width: 100%; }
+        /* 상태 전광판 */
+        #display-board { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; border: 4px solid #cbd5e1; background: #fff; margin-bottom: 16px; padding: 20px; }
+        .main-text { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
+        .sub-text { font-size: 1.1rem; color: #475569; margin-top: 10px; white-space: pre-line; }
+
+        /* 버튼 */
+        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; transition: 0.1s; }
+        .btn:active { transform: scale(0.96); }
+        .btn-big { height: 100px; font-size: 1.5rem; color: white; }
         .btn-in { background: var(--success); }
         .btn-out { background: var(--warning); }
-        .btn-scan { background: var(--primary); color: white; padding: 15px; width: 100%; font-size: 1.1rem; }
-        .btn:disabled { background: #cbd5e1; opacity: 0.6; }
+        .btn-action { background: var(--primary); color: white; padding: 18px; font-size: 1.1rem; }
+        .btn:disabled { background: #cbd5e1 !important; cursor: not-allowed; }
         
-        .file-label { display: block; padding: 20px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; margin-bottom: 10px; font-weight: 600; background: #fff; }
+        input[type="text"] { width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box; }
+        .file-label { display: block; padding: 24px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; font-weight: 700; background: #fff; margin-bottom: 12px; }
         input[type="file"] { display: none; }
-        input[type="password"], input[type="text"] { width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; font-size: 1rem; }
 
-        .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 8px; font-weight: 700; white-space: pre-line; }
-        .loader { width: 20px; height: 20px; border: 3px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: none; animation: rotation 1s linear infinite; }
-        @keyframes rotation { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
-        
-        #app-content { display: none; } /* 초기엔 숨김 */
+        /* 로딩 */
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; display: none; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #setup-page { display: block; } /* 기본 활성 */
+        #main-page { display: none; }   /* 기본 숨김 */
     </style>
 </head>
 <body>
 
-<div id="setup-view" class="card">
+<div id="setup-page" class="card">
     <div class="card-header">🔑 시스템 초기 설정</div>
     <div class="card-body">
-        <p style="margin-top:0; font-size:0.9rem; color:#64748b;">Gemini API 키를 입력하고 시작하세요.</p>
-        <input type="text" id="apiKeyInput" placeholder="AI API 키를 붙여넣으세요">
-        <button class="btn btn-scan" style="margin-top:10px;" onclick="initApp()">설정 완료 및 시작</button>
-        <p style="font-size:0.7rem; color:red; margin-top:10px;">* 키는 브라우저에만 안전하게 저장됩니다.</p>
+        <p style="margin: 0 0 15px 0; color: #64748b;">Gemini API 키를 입력하고 아래 버튼을 누르세요.</p>
+        <input type="text" id="key-input" placeholder="여기에 키를 붙여넣으세요">
+        <button class="btn btn-action" style="margin-top:15px;" onclick="saveAndStart()">설정 완료 및 시작</button>
     </div>
 </div>
 
-<div id="app-content">
+<div id="main-page">
     <div class="card">
         <div class="card-header">
-            📋 예약 리스트 등록
-            <span id="list-count" style="font-size:0.8rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">0대</span>
+            📋 예약 차량 리스트 등록
+            <span id="db-count" style="background:var(--primary); color:white; padding:2px 8px; border-radius:8px; font-size:0.8rem;">0대</span>
         </div>
         <div class="card-body">
-            <label class="file-label" for="listPhotos">📸 예약 리스트 사진 선택 (1~2장)</label>
-            <input type="file" id="listPhotos" accept="image/*" multiple onchange="checkFiles()">
-            <button id="btn-scan-list" class="btn btn-scan" onclick="processReservation()" disabled>
-                <span class="loader" id="list-loader"></span> 리스트 데이터 추출
+            <label class="file-label" for="list-files">📸 예약 리스트 사진 (1~2장)</label>
+            <input type="file" id="list-files" accept="image/*" multiple onchange="document.getElementById('list-btn').disabled = false;">
+            <button id="list-btn" class="btn btn-action" onclick="scanList()" disabled>
+                <div class="spinner" id="list-spin"></div> 리스트 데이터 추출하기
             </button>
-            <div id="list-error" class="error-msg"></div>
+            <div id="list-msg" style="margin-top:10px; font-weight:bold; text-align:center;"></div>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header">🚗 실시간 입출차 관리</div>
         <div class="card-body">
-            <div id="display-screen">
-                <div class="msg-main">준비 완료</div>
-                <div class="msg-sub">차량 번호판을 찍어주세요</div>
+            <div id="display-board">
+                <div class="main-text">준비 완료</div>
+                <div class="sub-text">차량 사진을 찍어주세요</div>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <label class="btn btn-main btn-in" for="inPlate">
-                    <span class="loader" id="in-loader"></span> 입차(IN)
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <label class="btn btn-big btn-in" for="cam-in">
+                    <div class="spinner" id="in-spin"></div> 입차
                 </label>
-                <label class="btn btn-main btn-out" for="outPlate">
-                    <span class="loader" id="out-loader"></span> 출차(OUT)
+                <label class="btn btn-big btn-out" for="cam-out">
+                    <div class="spinner" id="out-spin"></div> 출차
                 </label>
             </div>
-            <input type="file" id="inPlate" accept="image/*" onchange="processCar(this, '입차')">
-            <input type="file" id="outPlate" accept="image/*" onchange="processCar(this, '출차')">
-            <div id="plate-error" class="error-msg" style="text-align:center;"></div>
+            <input type="file" id="cam-in" accept="image/*" onchange="checkCar(this, '입차')">
+            <input type="file" id="cam-out" accept="image/*" onchange="checkCar(this, '출차')">
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <button class="btn" style="background:#64748b; color:white; padding:12px; width:100%;" onclick="downloadCSV()">📥 일반차량 기록 다운로드</button>
-            <button onclick="resetKey()" style="margin-top:15px; background:none; border:none; color:#94a3b8; font-size:0.7rem; text-decoration:underline; cursor:pointer;">API 키 재설정</button>
-        </div>
-    </div>
+    <button class="btn btn-action" style="background:#475569; margin-bottom:15px;" onclick="saveLogs()">📥 일반차량 기록 다운로드 (CSV)</button>
+    <center><button onclick="resetKey()" style="background:none; border:none; color:#94a3b8; text-decoration:underline; font-size:0.8rem; cursor:pointer;">API 키 재설정</button></center>
 </div>
 
 <script>
-    let reservationDB = [];
-    let logData = [];
-    let activeKey = "";
+    let db = [];
+    let logs = [];
+    let CURRENT_KEY = "";
 
-    // 시작 로직
-    window.onload = () => {
-        const savedKey = localStorage.getItem('gemini_car_key');
-        if (savedKey) {
-            activeKey = savedKey;
-            showApp();
+    // 1. 페이지 로드 시 체크
+    window.onload = function() {
+        const saved = localStorage.getItem('v4_key');
+        if (saved) {
+            CURRENT_KEY = saved;
+            openApp();
         }
     };
 
-    function initApp() {
-        const val = document.getElementById('apiKeyInput').value.trim();
-        if (!val) return alert("API 키를 입력해주세요.");
-        localStorage.setItem('gemini_car_key', val);
-        activeKey = val;
-        showApp();
+    // 2. 키 저장 및 앱 전환
+    function saveAndStart() {
+        const input = document.getElementById('key-input').value.trim();
+        if (!input) return alert("API 키를 입력해주세요!");
+        
+        localStorage.setItem('v4_key', input);
+        CURRENT_KEY = input;
+        openApp();
     }
 
-    function showApp() {
-        document.getElementById('setup-view').style.display = 'none';
-        document.getElementById('app-content').style.display = 'block';
+    function openApp() {
+        document.getElementById('setup-page').style.display = 'none';
+        document.getElementById('main-page').style.display = 'block';
     }
 
     function resetKey() {
-        localStorage.removeItem('gemini_car_key');
+        localStorage.removeItem('v4_key');
         location.reload();
     }
 
-    function checkFiles() {
-        const files = document.getElementById('listPhotos').files;
-        document.getElementById('btn-scan-list').disabled = files.length === 0;
-    }
-
-    async function resizeImg(file) {
+    // 3. 이미지 전처리
+    async function fixImg(file) {
         return new Promise((res) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
+            const r = new FileReader();
+            r.onload = (e) => {
+                const i = new Image();
+                i.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-                    const max = 1000;
-                    if (w > h) { if (w > max) { h *= max/w; w = max; } }
-                    else { if (h > max) { w *= max/h; h = max; } }
+                    let w = i.width, h = i.height;
+                    if (w > 1200) { h *= 1200/w; w = 1200; }
                     canvas.width = w; canvas.height = h;
-                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    res(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+                    canvas.getContext('2d').drawImage(i, 0, 0, w, h);
+                    res(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
                 };
-                img.src = e.target.result;
+                i.src = e.target.result;
             };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    async function callAI(base64, prompt) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
-        const resp = await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify({ contents: [{ parts: [{text: prompt}, {inline_data: {mime_type:"image/jpeg", data:base64}}]
