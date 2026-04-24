@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>서비스센터 입출차 v2.2</title>
+    <title>서비스센터 입출차 v2.3</title>
     <style>
         :root { --primary: #2563eb; --success: #059669; --warning: #d97706; --danger: #dc2626; --bg: #f1f5f9; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: #1e293b; }
@@ -12,28 +12,26 @@
         .card-body { padding: 15px; }
         
         /* 알림판 UX */
-        #display-screen { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; margin-bottom: 15px; padding: 20px; border: 3px solid #cbd5e1; background: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .msg-main { font-size: 1.6rem; font-weight: 900; line-height: 1.2; word-break: keep-all; }
-        .msg-sub { font-size: 1rem; color: #64748b; margin-top: 8px; }
+        #display-screen { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; margin-bottom: 15px; padding: 20px; border: 3px solid #cbd5e1; background: #fff; }
+        .msg-main { font-size: 1.6rem; font-weight: 900; line-height: 1.2; }
+        .msg-sub { font-size: 1rem; color: #64748b; margin-top: 8px; white-space: pre-line; }
 
-        /* 버튼 디자인 */
-        .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
-        .btn-main { height: 100px; font-size: 1.3rem; color: white; }
+        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-main { height: 100px; font-size: 1.3rem; color: white; width: 100%; }
         .btn-in { background: var(--success); }
         .btn-out { background: var(--warning); }
         .btn-scan { background: var(--primary); color: white; padding: 15px; width: 100%; font-size: 1.1rem; }
-        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn:disabled { background: #cbd5e1; opacity: 0.6; }
         
-        /* 파일 선택 라벨 */
-        .file-label { display: block; padding: 20px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; margin-bottom: 10px; font-weight: 600; color: #475569; }
+        .file-label { display: block; padding: 20px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; margin-bottom: 10px; font-weight: 600; background: #fff; }
         input[type="file"] { display: none; }
+        input[type="password"], input[type="text"] { width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; font-size: 1rem; }
 
-        /* 에러 및 상태 표시 */
         .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 8px; font-weight: 700; white-space: pre-line; }
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #e2e8f0; }
         .loader { width: 20px; height: 20px; border: 3px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: none; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
+        
+        #app-content { display: none; } /* 초기엔 숨김 */
     </style>
 </head>
 <body>
@@ -41,4 +39,119 @@
 <div id="setup-view" class="card">
     <div class="card-header">🔑 시스템 초기 설정</div>
     <div class="card-body">
-        <input type="password" id="apiKey" placeholder="Gemini API 키를 입력하세요" style="width:
+        <p style="margin-top:0; font-size:0.9rem; color:#64748b;">Gemini API 키를 입력하고 시작하세요.</p>
+        <input type="text" id="apiKeyInput" placeholder="AI API 키를 붙여넣으세요">
+        <button class="btn btn-scan" style="margin-top:10px;" onclick="initApp()">설정 완료 및 시작</button>
+        <p style="font-size:0.7rem; color:red; margin-top:10px;">* 키는 브라우저에만 안전하게 저장됩니다.</p>
+    </div>
+</div>
+
+<div id="app-content">
+    <div class="card">
+        <div class="card-header">
+            📋 예약 리스트 등록
+            <span id="list-count" style="font-size:0.8rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">0대</span>
+        </div>
+        <div class="card-body">
+            <label class="file-label" for="listPhotos">📸 예약 리스트 사진 선택 (1~2장)</label>
+            <input type="file" id="listPhotos" accept="image/*" multiple onchange="checkFiles()">
+            <button id="btn-scan-list" class="btn btn-scan" onclick="processReservation()" disabled>
+                <span class="loader" id="list-loader"></span> 리스트 데이터 추출
+            </button>
+            <div id="list-error" class="error-msg"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">🚗 실시간 입출차 관리</div>
+        <div class="card-body">
+            <div id="display-screen">
+                <div class="msg-main">준비 완료</div>
+                <div class="msg-sub">차량 번호판을 찍어주세요</div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <label class="btn btn-main btn-in" for="inPlate">
+                    <span class="loader" id="in-loader"></span> 입차(IN)
+                </label>
+                <label class="btn btn-main btn-out" for="outPlate">
+                    <span class="loader" id="out-loader"></span> 출차(OUT)
+                </label>
+            </div>
+            <input type="file" id="inPlate" accept="image/*" onchange="processCar(this, '입차')">
+            <input type="file" id="outPlate" accept="image/*" onchange="processCar(this, '출차')">
+            <div id="plate-error" class="error-msg" style="text-align:center;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <button class="btn" style="background:#64748b; color:white; padding:12px; width:100%;" onclick="downloadCSV()">📥 일반차량 기록 다운로드</button>
+            <button onclick="resetKey()" style="margin-top:15px; background:none; border:none; color:#94a3b8; font-size:0.7rem; text-decoration:underline; cursor:pointer;">API 키 재설정</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let reservationDB = [];
+    let logData = [];
+    let activeKey = "";
+
+    // 시작 로직
+    window.onload = () => {
+        const savedKey = localStorage.getItem('gemini_car_key');
+        if (savedKey) {
+            activeKey = savedKey;
+            showApp();
+        }
+    };
+
+    function initApp() {
+        const val = document.getElementById('apiKeyInput').value.trim();
+        if (!val) return alert("API 키를 입력해주세요.");
+        localStorage.setItem('gemini_car_key', val);
+        activeKey = val;
+        showApp();
+    }
+
+    function showApp() {
+        document.getElementById('setup-view').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+    }
+
+    function resetKey() {
+        localStorage.removeItem('gemini_car_key');
+        location.reload();
+    }
+
+    function checkFiles() {
+        const files = document.getElementById('listPhotos').files;
+        document.getElementById('btn-scan-list').disabled = files.length === 0;
+    }
+
+    async function resizeImg(file) {
+        return new Promise((res) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    const max = 1000;
+                    if (w > h) { if (w > max) { h *= max/w; w = max; } }
+                    else { if (h > max) { w *= max/h; h = max; } }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    res(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function callAI(base64, prompt) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify({ contents: [{ parts: [{text: prompt}, {inline_data: {mime_type:"image/jpeg", data:base64}}]
