@@ -3,259 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>V2: 스마트 서비스센터 입출차 관리</title>
+    <title>서비스센터 입출차 v2.2</title>
     <style>
-        :root { --primary: #2563eb; --success: #059669; --warning: #d97706; --danger: #dc2626; --bg: #f8fafc; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 15px; color: #1e293b; line-height: 1.5; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 15px; overflow: hidden; border: 1px solid #e2e8f0; }
-        .card-header { padding: 15px; background: #f1f5f9; font-weight: bold; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; }
+        :root { --primary: #2563eb; --success: #059669; --warning: #d97706; --danger: #dc2626; --bg: #f1f5f9; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: #1e293b; }
+        .card { background: white; border-radius: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 12px; border: 1px solid #e2e8f0; }
+        .card-header { padding: 12px 15px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 15px 15px 0 0; font-weight: 800; display: flex; justify-content: space-between; align-items: center; }
         .card-body { padding: 15px; }
-        h1 { font-size: 1.25rem; text-align: center; margin: 10px 0 20px; color: #0f172a; }
         
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-in { background: var(--success); color: white; height: 80px; font-size: 1.2rem; }
-        .btn-out { background: var(--warning); color: white; height: 80px; font-size: 1.2rem; }
-        .btn-secondary { background: #64748b; color: white; }
-        .btn:active { transform: scale(0.98); opacity: 0.9; }
-        
-        .status-badge { padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; background: #e2e8f0; }
-        .status-ready { background: #dcfce7; color: #166534; }
+        /* 알림판 UX */
+        #display-screen { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; margin-bottom: 15px; padding: 20px; border: 3px solid #cbd5e1; background: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .msg-main { font-size: 1.6rem; font-weight: 900; line-height: 1.2; word-break: keep-all; }
+        .msg-sub { font-size: 1rem; color: #64748b; margin-top: 8px; }
 
+        /* 버튼 디자인 */
+        .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .btn-main { height: 100px; font-size: 1.3rem; color: white; }
+        .btn-in { background: var(--success); }
+        .btn-out { background: var(--warning); }
+        .btn-scan { background: var(--primary); color: white; padding: 15px; width: 100%; font-size: 1.1rem; }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        
+        /* 파일 선택 라벨 */
+        .file-label { display: block; padding: 20px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; margin-bottom: 10px; font-weight: 600; color: #475569; }
         input[type="file"] { display: none; }
-        .file-label { display: block; width: 100%; padding: 15px; border: 2px dashed #cbd5e1; border-radius: 8px; text-align: center; cursor: pointer; box-sizing: border-box; margin-bottom: 10px; }
-        
-        #display-screen { min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 8px; margin-top: 10px; padding: 20px; border: 2px solid #e2e8f0; transition: all 0.3s; }
-        .msg-main { font-size: 1.5rem; font-weight: 800; margin-bottom: 5px; }
-        .msg-sub { font-size: 1rem; color: #64748b; }
-        
-        .loader { width: 24px; height: 24px; border: 3px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: none; animation: rotation 1s linear infinite; }
-        @keyframes rotation { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
 
-        .error-log { color: var(--danger); font-size: 0.85rem; margin-top: 5px; font-weight: 600; }
-        .data-preview { font-size: 0.8rem; max-height: 150px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 6px; }
+        /* 에러 및 상태 표시 */
+        .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 8px; font-weight: 700; white-space: pre-line; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #e2e8f0; }
+        .loader { width: 20px; height: 20px; border: 3px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: none; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
     </style>
 </head>
 <body>
 
-<h1>🚗 입출차 비전 관리 (V2)</h1>
-
-<div class="card" id="setup-card">
-    <div class="card-header">최초 1회 설정</div>
+<div id="setup-view" class="card">
+    <div class="card-header">🔑 시스템 초기 설정</div>
     <div class="card-body">
-        <input type="password" id="apiKey" placeholder="Gemini API 키를 입력하세요" style="width:100%; padding:12px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;">
-        <button class="btn btn-primary" onclick="saveKey()">시스템 시작</button>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-header">
-        1. 예약 리스트 스캔
-        <span id="list-count" class="status-badge">0대 등록됨</span>
-    </div>
-    <div class="card-body">
-        <label class="file-label" for="listPhotos">
-            📸 예약종이 촬영 또는 선택 (최대 2장)
-        </label>
-        <input type="file" id="listPhotos" accept="image/*" multiple onchange="handleListSelect()">
-        <div id="selected-files-name" style="font-size:0.8rem; margin-bottom:10px; color:#64748b;"></div>
-        <button id="btn-scan-list" class="btn btn-secondary" onclick="processLists()" disabled>
-            <span class="loader" id="list-loader"></span> 예약 리스트 분석하기
-        </button>
-        <div id="list-error" class="error-log"></div>
-        <div id="db-preview" class="data-preview" style="display:none;"></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-header">2. 차량 인식 및 무전 안내</div>
-    <div class="card-body">
-        <div id="display-screen">
-            <div class="msg-main">대기 중</div>
-            <div class="msg-sub">차량 사진을 찍어주세요</div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-            <label class="btn btn-in" for="inPlate">
-                <span class="loader" id="in-loader"></span> 입차 처리
-            </label>
-            <label class="btn btn-out" for="outPlate">
-                <span class="loader" id="out-loader"></span> 출차 처리
-            </label>
-        </div>
-        <input type="file" id="inPlate" accept="image/*" onchange="processPlate(this, '입차')">
-        <input type="file" id="outPlate" accept="image/*" onchange="processPlate(this, '출차')">
-        <div id="plate-error" class="error-log" style="text-align:center;"></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        <button class="btn btn-secondary" onclick="downloadLogs()">📥 오늘 일반차량 기록지(CSV) 저장</button>
-    </div>
-</div>
-
-<script>
-    let reservationDB = [];
-    let generalLogs = [];
-
-    // 초기 설정
-    window.onload = () => {
-        const saved = localStorage.getItem('gemini_v2_key');
-        if(saved) document.getElementById('setup-card').style.display = 'none';
-    };
-
-    function saveKey() {
-        const key = document.getElementById('apiKey').value;
-        if(!key) return alert("키를 입력하세요");
-        localStorage.setItem('gemini_v2_key', key);
-        document.getElementById('setup-card').style.display = 'none';
-    }
-
-    function handleListSelect() {
-        const files = document.getElementById('listPhotos').files;
-        const btn = document.getElementById('btn-scan-list');
-        const nameLabel = document.getElementById('selected-files-name');
-        
-        if(files.length > 0) {
-            nameLabel.innerText = `${files.length}장의 사진이 선택됨`;
-            btn.disabled = false;
-            btn.classList.replace('btn-secondary', 'btn-primary');
-        }
-    }
-
-    async function processLists() {
-        const files = document.getElementById('listPhotos').files;
-        const apiKey = localStorage.getItem('gemini_v2_key');
-        const loader = document.getElementById('list-loader');
-        const errDisplay = document.getElementById('list-error');
-        
-        if(files.length > 2) return alert("최대 2장까지만 선택 가능합니다.");
-        
-        loader.style.display = 'inline-block';
-        errDisplay.innerText = "";
-        reservationDB = []; // 초기화
-
-        for(let i=0; i<files.length; i++) {
-            try {
-                const base64 = await toBase64(files[i]);
-                const prompt = `이 사진은 차량 예약 리스트입니다. [예약시간]과 [차량번호]만 추출해서 반드시 아래 JSON 형식으로만 답하세요. 
-                                형식: {"data": [{"time": "시간", "plate": "차량번호"}]}
-                                번호판은 한글과 숫자만 남기세요. 다른 말은 절대 하지 마세요.`;
-                
-                const response = await callGemini(apiKey, base64, prompt);
-                const json = JSON.parse(response.replace(/```json|```/g, ""));
-                if(json.data) reservationDB = [...reservationDB, ...json.data];
-            } catch (e) {
-                errDisplay.innerText = `[사진 ${i+1}번 오류] ${getDetailedError(e)}`;
-            }
-        }
-
-        loader.style.display = 'none';
-        updateDBUI();
-    }
-
-    async function processPlate(input, type) {
-        if(!input.files[0]) return;
-        const apiKey = localStorage.getItem('gemini_v2_key');
-        const screen = document.getElementById('display-screen');
-        const loaderId = type === '입차' ? 'in-loader' : 'out-loader';
-        const loader = document.getElementById(loaderId);
-        const errDisplay = document.getElementById('plate-error');
-
-        loader.style.display = 'inline-block';
-        errDisplay.innerText = "";
-        setScreen("분석 중...", "차량 번호를 식별하고 있습니다", "#f1f5f9");
-
-        try {
-            const base64 = await toBase64(input.files[0]);
-            const prompt = "자동차 번호판만 인식해서 '12가1234' 형식으로 번호만 딱 답하세요.";
-            const plate = (await callGemini(apiKey, base64, prompt)).replace(/\s/g, "");
-
-            if(plate.length < 4) throw new Error("PlateNotFound");
-
-            // 예약 대조
-            const match = reservationDB.find(item => 
-                plate.includes(item.plate.replace(/\s/g, "")) || item.plate.replace(/\s/g, "").includes(plate)
-            );
-
-            const now = new Date().toLocaleTimeString('ko-KR', {hour12:false, hour:'2-digit', minute:'2-digit'});
-
-            if(match) {
-                setScreen(`${match.time} 예약차 (${plate})`, `${type} 확인되었습니다. 무전 하세요.`, "#dcfce7");
-            } else {
-                setScreen(`일반차량 (${plate})`, `기록지에 자동 저장되었습니다.`, "#fff3cd");
-                generalLogs.push({type, plate, time: now});
-            }
-        } catch (e) {
-            errDisplay.innerText = `[번호판 인식 오류] ${getDetailedError(e)}`;
-            setScreen("인식 실패", "사진을 다시 선명하게 찍어주세요", "#fee2e2");
-        } finally {
-            loader.style.display = 'none';
-            input.value = ""; // 초기화
-        }
-    }
-
-    // 유틸리티 함수들
-    async function callGemini(key, base64, prompt) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-        const res = await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify({ contents: [{ parts: [{text: prompt}, {inline_data: {mime_type:"image/jpeg", data:base64}}] }] })
-        });
-        
-        if(!res.ok) {
-            const errData = await res.json();
-            if(res.status === 400) throw new Error("InvalidAPIKey");
-            throw new Error(errData.error.message || "NetworkError");
-        }
-        
-        const data = await res.json();
-        return data.candidates[0].content.parts[0].text;
-    }
-
-    function toBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = e => reject(e);
-        });
-    }
-
-    function getDetailedError(e) {
-        if(e.message === "InvalidAPIKey") return "API 키가 잘못되었습니다. 설정에서 다시 확인하세요.";
-        if(e.message === "PlateNotFound") return "사진에서 차량 번호를 찾을 수 없습니다. 정면에서 다시 촬영하세요.";
-        if(e instanceof SyntaxError) return "AI가 데이터를 표 형식으로 읽지 못했습니다. 사진을 더 가까이서 찍어주세요.";
-        return "네트워크 연결 문제 또는 API 할당량 초과입니다.";
-    }
-
-    function setScreen(main, sub, bg) {
-        const s = document.getElementById('display-screen');
-        s.querySelector('.msg-main').innerText = main;
-        s.querySelector('.msg-sub').innerText = sub;
-        s.style.backgroundColor = bg;
-        s.style.borderColor = bg === "#f8fafc" ? "#e2e8f0" : bg;
-    }
-
-    function updateDBUI() {
-        document.getElementById('list-count').innerText = `${reservationDB.length}대 등록됨`;
-        document.getElementById('list-count').classList.add('status-ready');
-        const preview = document.getElementById('db-preview');
-        preview.style.display = 'block';
-        preview.innerHTML = "<b>등록된 번호:</b> " + reservationDB.map(i => `${i.time}(${i.plate})`).join(", ");
-    }
-
-    function downloadLogs() {
-        if(generalLogs.length === 0) return alert("저장할 일반 차량 기록이 없습니다.");
-        let csv = "\uFEFF구분,차량번호,시간\n" + generalLogs.map(l => `${l.type},${l.plate},${l.time}`).join("\n");
-        const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `입출차기록_${new Date().toLocaleDateString()}.csv`;
-        a.click();
-    }
-</script>
-
-</body>
-</html>
+        <input type="password" id="apiKey" placeholder="Gemini API 키를 입력하세요" style="width:
