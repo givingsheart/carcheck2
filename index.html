@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 입출차 관리 시스템</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; font-size: 1.5rem; }
+        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .section-title { font-weight: bold; margin-bottom: 10px; color: #34495e; }
+        input[type="file"], input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #2980b9; }
+        button.success { background-color: #27ae60; }
+        button.success:hover { background-color: #219653; }
+        .result-box { margin-top: 15px; padding: 15px; border-radius: 5px; text-align: center; font-size: 1.2rem; font-weight: bold; min-height: 50px; background-color: #ecf0f1; }
+        .log-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        .log-table th, .log-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .log-table th { background-color: #f2f2f2; }
+        #loader { display: none; text-align: center; color: #e67e22; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>스마트 입출차 관리</h1>
+
+    <div class="section" id="api-section">
+        <div class="section-title">시스템 초기 설정 (최초 1회)</div>
+        <input type="password" id="apiKey" placeholder="Gemini API 키를 입력하세요">
+        <button onclick="saveApiKey()">키 저장하기</button>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. 오늘의 예약 차량 리스트 등록 (아침 1회)</div>
+        <input type="file" id="listImage" accept="image/*" capture="environment">
+        <button onclick="processReservationList()">예약 리스트 스캔</button>
+        <div id="listStatus" style="margin-top: 10px; color: #27ae60; font-weight: bold;"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. 차량 번호판 인식 (입차/출차 시)</div>
+        <input type="file" id="plateImage" accept="image/*" capture="environment">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="processCarPlate('in')">입차 처리</button>
+            <button onclick="processCarPlate('out')">출차 처리</button>
+        </div>
+        <div id="loader">AI가 번호판을 분석 중입니다...</div>
+        <div id="resultBox" class="result-box">대기 중...</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. 일반 차량 입출차 기록</div>
+        <button class="success" onclick="downloadCSV()">Excel(CSV) 파일로 다운로드</button>
+        <table class="log-table" id="logTable">
+            <thead>
+                <tr>
+                    <th>구분</th>
+                    <th>차량번호</th>
+                    <th>시간</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 시스템 변수
+    let reservationData = {}; // { "187보7263": "8:30", ... }
+    let generalLogs = [];
+
+    // 페이지 로드 시 API 키 확인
+    window.onload = function() {
+        const savedKey = localStorage.getItem('geminiApiKey');
+        if (savedKey) {
+            document.getElementById('api-section').style.display = 'none';
+        }
+    }
+
+    function saveApiKey() {
+        const key = document.getElementById('apiKey').value;
+        if(key) {
+            localStorage.setItem('geminiApiKey', key);
+            alert('API 키가 안전하게 기기에 저장되었습니다.');
+            document.getElementById('api-section').style.display = 'none';
+        }
+    }
+
+    function getApiKey() {
+        const key = localStorage.getItem('geminiApiKey');
+        if (!key) alert("API 키를 먼저 입력해주세요.");
+        return key;
+    }
+
+    // 이미지 파일을 Base64로 변환
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // 텍스트 정제 (띄어쓰기, 특수문자 제거)
+    function cleanPlateNumber(text) {
+        return text.replace(/[^가-힣0-9]/g, '');
+    }
+
+    // Gemini API 호출 함수
+    async function callGemini(base64Image, promptText) {
+        const apiKey = getApiKey();
+        if(!apiKey) return null;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: promptText },
+                    { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                ]
+            }]
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        } catch (error) {
+            console.error("API Error:", error);
+            alert("AI 분석 중 오류가 발생했습니다.");
+            return null;
+        }
+    }
+
+    // 1. 예약 리스트 스캔
+    async function processReservationList() {
+        const fileInput = document.getElementById('listImage');
+        if (!fileInput.files[0]) return alert("예약 리스트 사진을 올려주세요.");
+
+        document.getElementById('listStatus').innerText = "데이터 추출 중...";
+        const base64Img = await fileToBase64(fileInput.files[0]);
+        
+        // OCR 프롬프트: 엄격한 형식을 요구하여 오류 방지
+        const prompt = `이 이미지는 예약차량 리스트입니다. 좌측의 시간과 우측의 차량번호를 짝지어서 JSON 형식으로만 응답해줘. 
+                        차량번호의 띄어쓰기는 모두 없애줘. 다른 설명은 하지마.
+                        형식 예시: {"187보7263": "8:30", "196모7239": "9:00"}`;
+
+        const resultText = await callGemini(base64Img, prompt);
+        
+        if(resultText) {
+            try {
+                // 마크다운 백틱 제거
+                const cleanJsonStr = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+                reservationData = JSON.parse(cleanJsonStr);
+                document.getElementById('listStatus').innerText = `총 ${Object.keys(reservationData).length}대의 예약 차량이 시스템에 등록되었습니다.`;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('listStatus').innerText = "리스트 인식에 실패했습니다. 사진을 다시 선명하게 찍어주세요.";
+            }
+        }
+    }
+
+    // 2. 차량 번호판 스캔 및 식별
+    async function processCarPlate(type) {
+        const fileInput = document.getElementById('plateImage');
+        if (!fileInput.files[0]) return alert("차량 번호판 사진을 올려주세요.");
+
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('resultBox').innerText = "분석 중...";
+        document.getElementById('resultBox').style.backgroundColor = "#ecf0f1";
+
+        const base64Img = await fileToBase64(fileInput.files[0]);
+        const prompt = "이 사진에서 자동차 번호판의 글자와 숫자만 추출해줘. 띄어쓰기나 특수기호 없이 번호만 텍스트로 응답해. 예: 117너5418";
+        
+        let plateText = await callGemini(base64Img, prompt);
+        document.getElementById('loader').style.display = 'none';
+
+        if(plateText) {
+            plateText = cleanPlateNumber(plateText);
+            checkAndLogVehicle(plateText, type);
+        }
+    }
+
+    // 식별 및 로직 처리
+    function checkAndLogVehicle(plateText, type) {
+        const resultBox = document.getElementById('resultBox');
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const typeStr = type === 'in' ? '입차' : '출차';
+
+        // 예약 차량 리스트에서 검색 (띄어쓰기 무시하고 부분 일치도 확인하여 OCR 한계 극복)
+        let isReserved = false;
+        let reservedTime = "";
+        
+        for (const [resPlate, resTime] of Object.entries(reservationData)) {
+            const cleanResPlate = cleanPlateNumber(resPlate);
+            if (cleanResPlate.includes(plateText) || plateText.includes(cleanResPlate)) {
+                isReserved = true;
+                reservedTime = resTime;
+                break;
+            }
+        }
+
+        if (isReserved) {
+            resultBox.innerHTML = `🟢 <b>예약차량입니다!</b><br>차량번호: ${plateText}<br>예약시간: ${reservedTime}`;
+            resultBox.style.backgroundColor = "#d4edda";
+            resultBox.style.color = "#155724";
+        } else {
+            resultBox.innerHTML = `🟡 <b>일반차량입니다.</b><br>차량번호: ${plateText}<br>기록지에 자동 추가되었습니다.`;
+            resultBox.style.backgroundColor = "#fff3cd";
+            resultBox.style.color = "#856404";
+            
+            // 일반 차량 로그 추가
+            generalLogs.push({ type: typeStr, plate: plateText, time: timeStr });
+            updateLogTable();
+        }
+    }
+
+    // 테이블 UI 업데이트
+    function updateLogTable() {
+        const tbody = document.querySelector('#logTable tbody');
+        tbody.innerHTML = '';
+        generalLogs.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${log.type}</td><td>${log.plate}</td><td>${log.time}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 일반 차량 기록지 다운로드 (Excel/CSV 형식)
+    function downloadCSV() {
+        if (generalLogs.length === 0) {
+            return alert("다운로드할 입출차 기록이 없습니다.");
+        }
+
+        // BOM 추가로 엑셀에서 한글 깨짐 방지
+        let csvContent = "\uFEFF구분,차량번호,시간\n"; 
+        
+        generalLogs.forEach(log => {
+            csvContent += `${log.type},${log.plate},${log.time}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", `일반차량_입출차기록_${dateStr}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
