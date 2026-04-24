@@ -3,139 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>서비스센터 입출차 관리 V4</title>
+    <title>서비스센터 입출차 관리 V5 (최종)</title>
     <style>
         :root { --primary: #2563eb; --success: #16a34a; --warning: #d97706; --danger: #dc2626; --bg: #f8fafc; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 12px; color: #0f172a; }
         .card { background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 16px; border: 1px solid #e2e8f0; overflow: hidden; }
-        .card-header { padding: 14px 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 800; font-size: 1rem; display: flex; justify-content: space-between; }
+        .card-header { padding: 14px 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 800; font-size: 1rem; }
         .card-body { padding: 16px; }
 
-        /* 상태 전광판 */
-        #display-board { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; border: 4px solid #cbd5e1; background: #fff; margin-bottom: 16px; padding: 20px; }
-        .main-text { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
+        /* 전광판 UX */
+        #display-board { min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; border: 4px solid #cbd5e1; background: #fff; margin-bottom: 16px; padding: 20px; box-sizing: border-box; }
+        .main-text { font-size: 1.8rem; font-weight: 900; line-height: 1.2; word-break: keep-all; }
         .sub-text { font-size: 1.1rem; color: #475569; margin-top: 10px; white-space: pre-line; }
 
-        /* 버튼 */
-        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; transition: 0.1s; }
-        .btn:active { transform: scale(0.96); }
+        /* 버튼 시스템 */
+        .btn { border: none; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; transition: 0.1s; box-sizing: border-box; }
+        .btn:active { transform: scale(0.96); opacity: 0.8; }
         .btn-big { height: 100px; font-size: 1.5rem; color: white; }
         .btn-in { background: var(--success); }
         .btn-out { background: var(--warning); }
-        .btn-action { background: var(--primary); color: white; padding: 18px; font-size: 1.1rem; }
+        .btn-action { background: var(--primary); color: white; padding: 18px; font-size: 1.1rem; margin-top: 10px; }
         .btn:disabled { background: #cbd5e1 !important; cursor: not-allowed; }
         
-        input[type="text"] { width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box; }
-        .file-label { display: block; padding: 24px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; font-weight: 700; background: #fff; margin-bottom: 12px; }
+        input[type="text"] { width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box; margin-bottom: 10px; }
+        .file-label { display: block; padding: 24px; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; font-weight: 700; background: #fff; margin-bottom: 12px; cursor: pointer; }
         input[type="file"] { display: none; }
 
-        /* 로딩 */
-        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; display: none; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        /* 로딩 스피너 */
+        .spinner { width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; display: none; animation: spin 0.8s linear infinite; margin-right: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        #setup-page { display: block; } /* 기본 활성 */
-        #main-page { display: none; }   /* 기본 숨김 */
+        /* 화면 제어 */
+        #setup-page { display: block; }
+        #app-page { display: none; }
+        .status-info { font-size: 0.9rem; text-align: center; margin-top: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="setup-page" class="card">
-    <div class="card-header">🔑 시스템 초기 설정</div>
-    <div class="card-body">
-        <p style="margin: 0 0 15px 0; color: #64748b;">Gemini API 키를 입력하고 아래 버튼을 누르세요.</p>
-        <input type="text" id="key-input" placeholder="여기에 키를 붙여넣으세요">
-        <button class="btn btn-action" style="margin-top:15px;" onclick="saveAndStart()">설정 완료 및 시작</button>
+<div id="setup-page">
+    <div class="card">
+        <div class="card-header">🔑 시스템 권한 인증</div>
+        <div class="card-body">
+            <p style="margin: 0 0 15px 0; color: #64748b; font-size: 0.9rem;">Gemini API 키를 입력하면 관제 시스템이 즉시 시작됩니다.</p>
+            <input type="text" id="api-key-input" placeholder="이곳에 API 키를 붙여넣으세요">
+            <button class="btn btn-action" onclick="handleAuth()">설정 완료 및 시스템 시작</button>
+        </div>
     </div>
 </div>
 
-<div id="main-page">
+<div id="app-page">
     <div class="card">
-        <div class="card-header">
-            📋 예약 차량 리스트 등록
-            <span id="db-count" style="background:var(--primary); color:white; padding:2px 8px; border-radius:8px; font-size:0.8rem;">0대</span>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            📋 예약 리스트 스캔
+            <span id="db-count" style="background:var(--primary); color:white; padding:2px 10px; border-radius:20px; font-size:0.8rem;">0대 대기</span>
         </div>
         <div class="card-body">
-            <label class="file-label" for="list-files">📸 예약 리스트 사진 (1~2장)</label>
-            <input type="file" id="list-files" accept="image/*" multiple onchange="document.getElementById('list-btn').disabled = false;">
-            <button id="list-btn" class="btn btn-action" onclick="scanList()" disabled>
-                <div class="spinner" id="list-spin"></div> 리스트 데이터 추출하기
+            <label class="file-label" for="list-input">📸 예약종이 촬영 또는 갤러리 선택</label>
+            <input type="file" id="list-input" accept="image/*" multiple onchange="onListSelected()">
+            <button id="list-scan-btn" class="btn btn-action" onclick="runListScan()" disabled>
+                <div class="spinner" id="list-spin"></div> 예약 리스트 데이터 추출
             </button>
-            <div id="list-msg" style="margin-top:10px; font-weight:bold; text-align:center;"></div>
+            <div id="list-status" class="status-info"></div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header">🚗 실시간 입출차 관리</div>
+        <div class="card-header">🚗 실시간 입출차 관제</div>
         <div class="card-body">
             <div id="display-board">
                 <div class="main-text">준비 완료</div>
-                <div class="sub-text">차량 사진을 찍어주세요</div>
+                <div class="sub-text">차량 번호판 사진을 찍어주세요</div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <label class="btn btn-big btn-in" for="cam-in">
-                    <div class="spinner" id="in-spin"></div> 입차
+                    <div class="spinner" id="in-spin"></div> 입차(IN)
                 </label>
                 <label class="btn btn-big btn-out" for="cam-out">
-                    <div class="spinner" id="out-spin"></div> 출차
+                    <div class="spinner" id="out-spin"></div> 출차(OUT)
                 </label>
             </div>
-            <input type="file" id="cam-in" accept="image/*" onchange="checkCar(this, '입차')">
-            <input type="file" id="cam-out" accept="image/*" onchange="checkCar(this, '출차')">
+            <input type="file" id="cam-in" accept="image/*" onchange="runCarCheck(this, '입차')">
+            <input type="file" id="cam-out" accept="image/*" onchange="runCarCheck(this, '출차')">
+            <div id="car-status" class="status-info"></div>
         </div>
     </div>
 
-    <button class="btn btn-action" style="background:#475569; margin-bottom:15px;" onclick="saveLogs()">📥 일반차량 기록 다운로드 (CSV)</button>
-    <center><button onclick="resetKey()" style="background:none; border:none; color:#94a3b8; text-decoration:underline; font-size:0.8rem; cursor:pointer;">API 키 재설정</button></center>
+    <button class="btn btn-action" style="background:#475569; margin-bottom:20px;" onclick="exportLogs()">📥 오늘 일반차량 기록 저장 (CSV)</button>
+    <center><button onclick="resetSystem()" style="background:none; border:none; color:#94a3b8; text-decoration:underline; font-size:0.7rem; cursor:pointer;">API 키 재설정</button></center>
 </div>
 
 <script>
-    let db = [];
-    let logs = [];
-    let CURRENT_KEY = "";
+    let reservationData = [];
+    let generalLogs = [];
+    let GLOBAL_KEY = "";
 
-    // 1. 페이지 로드 시 체크
+    // [로직 1] 초기화 및 화면 전환
     window.onload = function() {
-        const saved = localStorage.getItem('v4_key');
-        if (saved) {
-            CURRENT_KEY = saved;
-            openApp();
+        const savedKey = localStorage.getItem('gemini_final_key');
+        if (savedKey) {
+            GLOBAL_KEY = savedKey;
+            switchToApp();
         }
     };
 
-    // 2. 키 저장 및 앱 전환
-    function saveAndStart() {
-        const input = document.getElementById('key-input').value.trim();
-        if (!input) return alert("API 키를 입력해주세요!");
-        
-        localStorage.setItem('v4_key', input);
-        CURRENT_KEY = input;
-        openApp();
+    function handleAuth() {
+        const key = document.getElementById('api-key-input').value.trim();
+        if (!key) return alert("키를 입력해주세요.");
+        localStorage.setItem('gemini_final_key', key);
+        GLOBAL_KEY = key;
+        switchToApp();
     }
 
-    function openApp() {
+    function switchToApp() {
         document.getElementById('setup-page').style.display = 'none';
-        document.getElementById('main-page').style.display = 'block';
+        document.getElementById('app-page').style.display = 'block';
     }
 
-    function resetKey() {
-        localStorage.removeItem('v4_key');
+    function resetSystem() {
+        localStorage.removeItem('gemini_final_key');
         location.reload();
     }
 
-    // 3. 이미지 전처리
-    async function fixImg(file) {
-        return new Promise((res) => {
-            const r = new FileReader();
-            r.onload = (e) => {
-                const i = new Image();
-                i.onload = () => {
+    function onListSelected() {
+        document.getElementById('list-scan-btn').disabled = false;
+        document.getElementById('list-status').innerText = "사진이 준비되었습니다.";
+    }
+
+    // [로직 2] 이미지 전처리 (리사이징 및 최적화)
+    async function processImg(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let w = i.width, h = i.height;
-                    if (w > 1200) { h *= 1200/w; w = 1200; }
+                    let w = img.width, h = img.height;
+                    const max_dim = 1200;
+                    if (w > h) { if (w > max_dim) { h *= max_dim/w; w = max_dim; } }
+                    else { if (h > max_dim) { w *= max_dim/h; h = max_dim; } }
                     canvas.width = w; canvas.height = h;
-                    canvas.getContext('2d').drawImage(i, 0, 0, w, h);
-                    res(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
                 };
-                i.src = e.target.result;
+                img.src = e.target.result;
             };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // [로직 3] 핵심 AI 통신
+    async function callGemini(b64, prompt) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GLOBAL_KEY}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{text: prompt}, {inline_data: {mime_type:"image/jpeg", data:b64}}] }] })
+        });
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || "연결 오류");
+        return data.candidates[0].content.parts[0].text;
+    }
+
+    // [로직 4] 리스트 스캔 실행
+    async function runListScan() {
+        const files = document.getElementById('list-input').files;
+        const msg = document.getElementById('list-status');
+        const spin = document.getElementById('list-spin');
+        const btn = document.getElementById('list-scan-btn');
+        
+        btn.disabled = true;
+        spin.style.display = 'inline-block';
+        msg.innerText = "데이터 추출 중 (최대 30초 소요)...";
+        reservationData = [];
+
+        try {
+            for (let f of files) {
+                const b64 = await processImg(f);
+                const resText = await callGemini(b64, "이 예약 리스트에서 '시간'과 '차량번호'만 찾아서 '09:00 | 12가1234' 형식으로 한 줄씩 모두 써줘.");
+                
+                resText.split('\n').forEach(line => {
+                    if (line.includes('|')) {
+                        const parts = line.split('|').map(p => p.trim());
+                        const plateNum = parts[1].replace(/[^가-힣0-9]/g, "");
+                        if (plateNum) reservationData.push({ time: parts[0], plate: plateNum });
+                    }
+                });
+            }
+            document.getElementById('db-count').innerText = `${reservationData.length}대 대기`;
+            msg.innerText = "✅ 리스트 등록이 완료되었습니다.";
+            msg.style.color = "var(--success)";
+        } catch (e) {
+            msg.innerText = "❌ 인식 오류: " + e.message;
+            msg.style.color = "var(--danger)";
+        } finally {
+            spin.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    // [로직 5] 실시간 차량 체크
+    async function runCarCheck(input, mode) {
+        if (!input.files[0]) return;
+        const spin = document.getElementById(mode === '입차' ? 'in-spin' : 'out-spin');
+        const msg = document.getElementById('car-status');
+        
+        spin.style.display = 'inline-block';
+        updateBoard("인식 시도 중", "차량 번호를 분석하고 있습니다.", "#fff");
+
+        try {
+            const b64 = await processImg(input.files[0]);
+            const recognized = await callGemini(b64, "번호판의 숫자와 글자만 말해줘. 예: 12가1234");
+            const cleanPlate = recognized.replace(/[^가-힣0-9]/g, "");
+
+            if (cleanPlate.length < 4) throw new Error("번호판 인식 실패 (사진을 더 가까이서 찍으세요)");
+
+            // 대조 로직 (부분 일치 포함)
+            const match = reservationData.find(item => cleanPlate.includes(item.plate) || item.plate.includes(cleanPlate));
+
+            if (match) {
+                updateBoard(`${match.time} 예약차`, `번호: ${cleanPlate}\n예약이 확인되었습니다. 무전 하세요!`, "#dcfce7");
+            } else {
+                updateBoard(`일반차량 (비예약)`, `번호: ${cleanPlate}\n기록지에 추가되었습니다.`, "#fff3cd");
+                generalLogs.push({ mode, plate: cleanPlate, time: new Date().toLocaleTimeString('ko-KR', {hour12:false, hour:'2-digit', minute:'2-digit'}) });
+            }
+        } catch (e) {
+            msg.innerText = "⚠️ 인식 실패: " + e.message;
+            updateBoard("인식 실패", "다시 선명하게 촬영해주세요.", "#fee2e2");
+        } finally {
+            spin.style.display = 'none';
+            input.value = ""; // 파일 초기화
+        }
+    }
+
+    function updateBoard(m, s, bg) {
+        const board = document.getElementById('display-board');
+        board.querySelector('.main-text').innerText = m;
+        board.querySelector('.sub-text').innerText = s;
+        board.style.background = bg;
+        board.style.borderColor = (bg === "#fff") ? "#cbd5e1" : bg;
+    }
+
+    function exportLogs() {
+        if (generalLogs.length === 0) return alert("기록할 데이터가 없습니다.");
+        let csvContent = "\uFEFF유형,차량번호,발생시간\n" + generalLogs.map(l => `${l.mode},${l.plate},${l.time}`).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `차량기록_${new Date().toLocaleDateString()}.csv`;
+        link.click();
+    }
+</script>
+
+</body>
+</html>
